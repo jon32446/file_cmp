@@ -1,7 +1,6 @@
-use std::process::ExitCode;
-
 use clap::Parser;
 use file_cmp::compare_files;
+use std::process::ExitCode;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)] // Read from `Cargo.toml`
