@@ -10,6 +10,9 @@ struct Args {
     file1: String,
     /// File path to second file to compare
     file2: String,
+    /// Optional flag to enable machine-readable output
+    #[arg(short('m'), long("machine"))]
+    machine_readable: bool,
 }
 
 fn main() -> ExitCode {
@@ -17,11 +20,19 @@ fn main() -> ExitCode {
 
     match compare_files(&args.file1, &args.file2) {
         Ok(None) => {
-            println!("Files are equal");
+            if args.machine_readable {
+                print!("-1");
+            } else {
+                println!("Files are equal");
+            }
             ExitCode::SUCCESS
         }
         Ok(Some(offset)) => {
-            eprintln!("Files differ at byte {}", offset);
+            if args.machine_readable {
+                print!("{}", offset);
+            } else {
+                println!("Files differ at byte {}", offset);
+            }
             ExitCode::SUCCESS
         }
         Err(e) => {
