@@ -5,10 +5,10 @@ use std::process::ExitCode;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)] // Read from `Cargo.toml`
 struct Args {
-    /// File path to first file to compare
-    file1: String,
-    /// File path to second file to compare
-    file2: String,
+    /// Path to first file to compare
+    path1: String,
+    /// Path to second file to compare
+    path2: String,
     /// Optional flag to enable machine-readable output
     #[arg(short('m'), long("machine"))]
     machine_readable: bool,
@@ -23,7 +23,7 @@ struct Args {
 fn main() -> ExitCode {
     let args = Args::parse();
 
-    match compare_files(&args.file1, &args.file2, args.quick) {
+    match compare_files(&args.path1, &args.path2, args.quick) {
         Ok(None) => {
             if args.machine_readable {
                 print!("-1");
