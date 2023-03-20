@@ -2,11 +2,19 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::Path;
 
-pub fn compare_files<P: AsRef<Path>>(file1_path: P, file2_path: P) -> io::Result<Option<usize>> {
+pub fn compare_files<P: AsRef<Path>>(
+    file1_path: P,
+    file2_path: P,
+    quick: bool,
+) -> io::Result<Option<usize>> {
     let file1_meta = fs::metadata(&file1_path)?;
     let file2_meta = fs::metadata(&file2_path)?;
 
     if file1_meta.len() == 0 || file2_meta.len() == 0 {
+        return Ok(Some(0));
+    }
+
+    if quick && file1_meta.len() != file2_meta.len() {
         return Ok(Some(0));
     }
 
@@ -26,6 +34,9 @@ pub fn compare_files<P: AsRef<Path>>(file1_path: P, file2_path: P) -> io::Result
         }
 
         if len1 != len2 || buffer1[..len1] != buffer2[..len2] {
+            if quick {
+                return Ok(Some(0));
+            }
             for i in 0..len1 {
                 if buffer1[i] != buffer2[i] {
                     return Ok(Some(pos + i));
