@@ -29,7 +29,7 @@ pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Res
             return Ok(None);
         }
 
-        if len1 != len2 || buffer1[..len1] != buffer2[..len2] {
+        if buffer1[..len1] != buffer2[..len2] {
             if quick {
                 return Ok(Some(0));
             }
