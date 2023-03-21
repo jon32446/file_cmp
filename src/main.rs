@@ -1,5 +1,5 @@
 use clap::Parser;
-use file_cmp::{compare_dirs, compare_files, is_dir};
+use file_cmp::{compare_dirs, compare_files, is_dir, FileDiff};
 use std::process::ExitCode;
 
 #[derive(Parser, Debug)]
@@ -27,31 +27,35 @@ fn main() -> ExitCode {
         Ok(true) => {
             let results = compare_dirs(&args.path1, &args.path2, args.quick);
 
-            for (path, offset) in results {
-                let status = match offset {
-                    -1 => "equal",
-                    -2 => "left only",
-                    -3 => "right only",
-                    _ => "diff",
-                };
-                println!("{}\t{}\t({})", offset, path.display(), status);
+            for (path, file_diff) in results {
+                println!(
+                    "{}\t{}{}",
+                    file_diff.as_number(),
+                    path.display(),
+                    if args.machine_readable {
+                        "".to_string()
+                    } else {
+                        format!("\t({})", file_diff.as_desc())
+                    }
+                );
             }
             ExitCode::SUCCESS
         }
         Ok(false) => match compare_files(&args.path1, &args.path2, args.quick) {
-            Ok(None) => {
+            Ok(result @ _) => {
                 if args.machine_readable {
-                    print!("-1");
+                    print!("{}", result.as_number())
                 } else {
-                    println!("Files are equal");
-                }
-                ExitCode::SUCCESS
-            }
-            Ok(Some(offset)) => {
-                if args.machine_readable {
-                    print!("{}", offset);
-                } else {
-                    println!("Files differ at byte {}", offset);
+                    print!(
+                        "{}",
+                        match result {
+                            FileDiff::Equal => "Files are equal".to_string(),
+                            FileDiff::Different(o @ _) => {
+                                format!("Files differ at byte {}", o)
+                            }
+                            _ => "This should never happen.".to_string(),
+                        }
+                    )
                 }
                 ExitCode::SUCCESS
             }
