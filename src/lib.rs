@@ -2,6 +2,11 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 
+pub fn is_dir<P: AsRef<Path>>(path1: P) -> io::Result<bool> {
+    let file1_meta = fs::metadata(&path1)?;
+    Ok(file1_meta.is_dir())
+}
+
 pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Result<Option<usize>> {
     let file1_meta = fs::metadata(&path1)?;
     let file2_meta = fs::metadata(&path2)?;
