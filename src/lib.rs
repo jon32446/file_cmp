@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Result<Option<usize>> {
     let file1_meta = fs::metadata(&path1)?;
@@ -42,4 +42,56 @@ pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Res
 
         pos += len1;
     }
+}
+
+pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathBuf, i64)> {
+    let mut results = vec![];
+
+    for entry in fs::read_dir(&dir1).expect("Failed to read directory") {
+        let entry = entry.expect("Failed to read directory entry");
+        let path = entry.path();
+
+        if path.is_dir() {
+            let other_path = dir2
+                .as_ref()
+                .join(path.file_name().expect("Failed to get filename"));
+            results.extend(compare_dirs(&path, &other_path, quick));
+        } else {
+            let other_path = dir2
+                .as_ref()
+                .join(path.file_name().expect("Failed to get filename"));
+            if other_path.exists() {
+                match compare_files(&path, &other_path, quick) {
+                    Ok(None) => results.push((path, -1)),
+                    Ok(Some(offset)) => results.push((
+                        path,
+                        offset.try_into().expect("Failed to convert offset value"),
+                    )),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+            } else {
+                results.push((path, -2));
+            }
+        }
+    }
+
+    for entry in fs::read_dir(dir2).expect("Failed to read directory") {
+        let entry = entry.expect("Failed to read directory entry");
+        let path = entry.path();
+        if path.is_dir() {
+            let other_path = dir1
+                .as_ref()
+                .join(path.file_name().expect("Failed to get filename"));
+            results.extend(compare_dirs(&other_path, &path, quick));
+        } else {
+            let other_path = dir1
+                .as_ref()
+                .join(path.file_name().expect("Failed to get filename"));
+            if !other_path.exists() {
+                results.push((path, -3));
+            }
+        }
+    }
+
+    results
 }
