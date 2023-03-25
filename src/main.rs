@@ -18,6 +18,9 @@ struct Args {
     /// Optional parameter to set the chunk size for reading the files, e.g. 4k, 2M
     #[arg(short, long)]
     chunk_size: Option<String>,
+    /// Optional flag to only output non-equal results (when diffing dirs)
+    #[arg(short, long)]
+    diffs_only: bool,
 }
 
 fn main() -> ExitCode {
@@ -28,6 +31,9 @@ fn main() -> ExitCode {
             let results = compare_dirs(&args.path1, &args.path2, args.quick);
 
             for (path, file_diff) in results {
+                if args.diffs_only && file_diff == FileDiff::Equal {
+                    continue;
+                }
                 println!(
                     "{}\t{}{}",
                     file_diff.as_number(),
