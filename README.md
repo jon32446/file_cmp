@@ -17,6 +17,7 @@ Options:
   -m, --machine                  Optional flag to enable machine-readable output
   -q, --quick                    Optional flag to do faster comparison and not output first diff offset
   -c, --chunk-size <CHUNK_SIZE>  Optional parameter to set the chunk size for reading the files, e.g. 4k, 2M
+  -d, --diffs-only               Optional flag to only output non-equal results (when diffing dirs)
   -h, --help                     Print help
   -V, --version                  Print version
 ```
