@@ -91,7 +91,11 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
             let other_path = dir2
                 .as_ref()
                 .join(path.file_name().expect("Failed to get filename"));
-            results.extend(compare_dirs(&path, &other_path, quick));
+            if other_path.is_dir() {
+                results.extend(compare_dirs(&path, &other_path, quick));
+            } else {
+                results.push((path, FileDiff::LeftOnly));
+            }
         } else {
             let other_path = dir2
                 .as_ref()
@@ -114,7 +118,11 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
             let other_path = dir1
                 .as_ref()
                 .join(path.file_name().expect("Failed to get filename"));
-            results.extend(compare_dirs(&other_path, &path, quick));
+            if other_path.is_dir() {
+                results.extend(compare_dirs(&other_path, &path, quick));
+            } else {
+                results.push((path, FileDiff::RightOnly));
+            }
         } else {
             let other_path = dir1
                 .as_ref()
