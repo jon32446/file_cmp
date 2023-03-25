@@ -63,3 +63,11 @@ fn test_compare_files_one_emtpy() -> io::Result<()> {
     assert_eq!(res, Different(0));
     Ok(())
 }
+
+#[test]
+fn test_compare_files_both_emtpy() -> io::Result<()> {
+    // Test when file1 is empty
+    let res = compare_files(p("emptyfile.txt"), p("emptyfile.txt"), false)?;
+    assert_eq!(res, Equal);
+    Ok(())
+}

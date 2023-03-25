@@ -40,7 +40,10 @@ pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Res
     let file2_meta = fs::metadata(&path2)?;
 
     if file1_meta.len() == 0 || file2_meta.len() == 0 {
-        return Ok(FileDiff::Different(0));
+        return match file1_meta.len() == file2_meta.len() {
+            true => Ok(FileDiff::Equal),
+            false => Ok(FileDiff::Different(0)),
+        };
     }
 
     if quick && file1_meta.len() != file2_meta.len() {
