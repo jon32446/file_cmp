@@ -19,7 +19,7 @@ jobs:
     - name: Build
       run: cargo build --release
     - name: Create Release
-    - uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@v1
       with:
         artifacts: "target/release/file_cmp"
         tag: latest
