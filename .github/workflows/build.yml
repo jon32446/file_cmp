@@ -32,14 +32,14 @@ jobs:
         cargo build --release --target x86_64-pc-windows-gnu
     - name: List target directory
       run: |
-        ls -al target
+        ls -alR target
     - name: Set sha_short
       id: vars
       run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "target/release/file_cmp,target/release/file_cmp.exe"
+        artifacts: "target/release/file_cmp,target/x86_64-pc-windows-gnu/file_cmp.exe"
         tag: latest
         name: file_cmp-${{ steps.vars.outputs.sha_short }}
         prerelease: true
