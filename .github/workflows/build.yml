@@ -19,11 +19,11 @@ jobs:
     - name: Build
       run: cargo build --release
     - name: Create Release
-      uses: "marvinpinto/action-automatic-releases@latest"
+    - uses: ncipollo/release-action@v1
       with:
-        title: file_cmp-${{ github.sha }}-${{ matrix.os }}
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        artifacts: "target/release/file_cmp"
+        tag: latest
+        name: file_cmp-${{ github.sha }}-${{ matrix.os }}
         prerelease: true
-        files: |
-          target/release/file_cmp
+        draft: true
+        token: "${{ secrets.GITHUB_TOKEN }}"
