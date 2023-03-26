@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     branches:
-      - feat_gitworkflow
+      - master
 
 jobs:
   build-and-release:
@@ -30,9 +30,6 @@ jobs:
         
         # Build Windows binary
         cargo build --release --target x86_64-pc-windows-gnu
-    - name: List target directory
-      run: |
-        ls -alR target
     - name: Set sha_short
       id: vars
       run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
