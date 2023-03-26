@@ -21,8 +21,9 @@ jobs:
     - name: Create Release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
         title: file_cmp-${{ github.sha }}-${{ matrix.os }}
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
         prerelease: true
         files: |
           target/release/file_cmp
