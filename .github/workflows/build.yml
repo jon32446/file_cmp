@@ -1,0 +1,44 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+    - name: Build
+      run: |
+        # Build Linux binary
+        cargo build --release
+        
+        # Install cross-compilation toolchain for Windows
+        sudo apt-get update
+        sudo apt-get install -y mingw-w64
+        rustup target add x86_64-pc-windows-gnu
+        
+        # Build Windows binary
+        cargo build --release --target x86_64-pc-windows-gnu
+    - name: Set sha_short
+      id: vars
+      run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "target/release/file_cmp,target/x86_64-pc-windows-gnu/release/file_cmp.exe"
+        tag: latest
+        name: file_cmp-${{ steps.vars.outputs.sha_short }}
+        prerelease: true
+        draft: true
+        token: "${{ secrets.GITHUB_TOKEN }}"
