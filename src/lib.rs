@@ -1,3 +1,5 @@
+use rayon::prelude::*;
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -118,61 +120,84 @@ pub fn compare_dirs<P: AsRef<Path>>(
     quick: bool,
     chunk_size: usize,
 ) -> io::Result<Vec<(PathBuf, FileDiff)>> {
-    let mut results = vec![];
+    let dir1 = dir1.as_ref();
+    let dir2 = dir2.as_ref();
 
-    for entry in fs::read_dir(&dir1)? {
-        let entry = entry?;
-        let path = entry.path();
+    // Collect entries from both directories
+    let entries1: Vec<_> = fs::read_dir(dir1)?
+        .filter_map(|e| e.ok())
+        .collect();
+    let entries2: Vec<_> = fs::read_dir(dir2)?
+        .filter_map(|e| e.ok())
+        .collect();
 
-        let filename = match path.file_name() {
-            Some(name) => name,
-            None => continue,
-        };
+    // Build a set of filenames from dir1 to track what's been processed
+    let dir1_names: HashSet<_> = entries1
+        .iter()
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
 
-        if path.is_dir() {
-            let other_path = dir2.as_ref().join(filename);
-            if other_path.is_dir() {
-                results.extend(compare_dirs(&path, &other_path, quick, chunk_size)?);
-            } else {
-                results.push((path, FileDiff::LeftOnly));
-            }
-        } else {
-            let other_path = dir2.as_ref().join(filename);
-            if other_path.exists() {
-                match compare_files(&path, &other_path, quick, chunk_size) {
-                    Ok(result) => results.push((path, result)),
-                    Err(e) => results.push((path, FileDiff::Error(e.to_string()))),
+    // Process dir1 entries in parallel
+    let results1: Vec<(PathBuf, FileDiff)> = entries1
+        .par_iter()
+        .flat_map(|entry| {
+            let path = entry.path();
+            let filename = match path.file_name() {
+                Some(name) => name,
+                None => return vec![],
+            };
+
+            if path.is_dir() {
+                let other_path = dir2.join(filename);
+                if other_path.is_dir() {
+                    match compare_dirs(&path, &other_path, quick, chunk_size) {
+                        Ok(sub_results) => sub_results,
+                        Err(e) => vec![(path, FileDiff::Error(e.to_string()))],
+                    }
+                } else {
+                    vec![(path, FileDiff::LeftOnly)]
                 }
             } else {
-                results.push((path, FileDiff::LeftOnly));
+                let other_path = dir2.join(filename);
+                if other_path.exists() {
+                    match compare_files(&path, &other_path, quick, chunk_size) {
+                        Ok(result) => vec![(path, result)],
+                        Err(e) => vec![(path, FileDiff::Error(e.to_string()))],
+                    }
+                } else {
+                    vec![(path, FileDiff::LeftOnly)]
+                }
             }
-        }
-    }
+        })
+        .collect();
 
-    for entry in fs::read_dir(&dir2)? {
-        let entry = entry?;
-        let path = entry.path();
+    // Process dir2 entries for right-only items (skip items already in dir1)
+    let results2: Vec<(PathBuf, FileDiff)> = entries2
+        .par_iter()
+        .flat_map(|entry| {
+            let path = entry.path();
+            let filename = match path.file_name() {
+                Some(name) => name,
+                None => return vec![],
+            };
 
-        let filename = match path.file_name() {
-            Some(name) => name,
-            None => continue,
-        };
+            // Skip if already processed from dir1
+            if let Some(name_str) = filename.to_str() {
+                if dir1_names.contains(name_str) {
+                    return vec![];
+                }
+            }
 
-        if path.is_dir() {
-            let other_path = dir1.as_ref().join(filename);
-            if other_path.is_dir() {
-                results.extend(compare_dirs(&other_path, &path, quick, chunk_size)?);
+            if path.is_dir() {
+                vec![(path, FileDiff::RightOnly)]
             } else {
-                results.push((path, FileDiff::RightOnly));
+                vec![(path, FileDiff::RightOnly)]
             }
-        } else {
-            let other_path = dir1.as_ref().join(filename);
-            if !other_path.exists() {
-                results.push((path, FileDiff::RightOnly));
-            }
-        }
-    }
+        })
+        .collect();
 
+    let mut results = results1;
+    results.extend(results2);
     Ok(results)
 }
 
