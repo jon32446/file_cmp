@@ -2,6 +2,13 @@ use clap::Parser;
 use file_cmp::{compare_dirs, compare_files, is_dir, parse_chunk_size, FileDiff, DEFAULT_CHUNK_SIZE};
 use std::process::ExitCode;
 
+/// Exit code for identical files (standard cmp behavior)
+const EXIT_IDENTICAL: u8 = 0;
+/// Exit code for different files (standard cmp behavior)
+const EXIT_DIFFERENT: u8 = 1;
+/// Exit code for errors (standard cmp behavior)
+const EXIT_ERROR: u8 = 2;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)] // Read from `Cargo.toml`
 struct Args {
@@ -36,9 +43,17 @@ fn main() -> ExitCode {
         Ok(true) => {
             match compare_dirs(&args.path1, &args.path2, args.quick, chunk_size) {
                 Ok(results) => {
-                    for (path, file_diff) in results {
-                        if args.diffs_only && file_diff == FileDiff::Equal {
+                    let mut has_diff = false;
+                    let mut has_error = false;
+                    for (path, file_diff) in &results {
+                        if args.diffs_only && *file_diff == FileDiff::Equal {
                             continue;
+                        }
+                        if matches!(file_diff, FileDiff::Error(_)) {
+                            has_error = true;
+                        }
+                        if *file_diff != FileDiff::Equal {
+                            has_diff = true;
                         }
                         println!(
                             "{}\t{}{}",
@@ -51,11 +66,17 @@ fn main() -> ExitCode {
                             }
                         );
                     }
-                    ExitCode::SUCCESS
+                    if has_error {
+                        ExitCode::from(EXIT_ERROR)
+                    } else if has_diff {
+                        ExitCode::from(EXIT_DIFFERENT)
+                    } else {
+                        ExitCode::from(EXIT_IDENTICAL)
+                    }
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);
-                    ExitCode::FAILURE
+                    ExitCode::from(EXIT_ERROR)
                 }
             }
         }
@@ -75,16 +96,19 @@ fn main() -> ExitCode {
                         }
                     )
                 }
-                ExitCode::SUCCESS
+                match result {
+                    FileDiff::Equal => ExitCode::from(EXIT_IDENTICAL),
+                    _ => ExitCode::from(EXIT_DIFFERENT),
+                }
             }
             Err(e) => {
                 eprintln!("Error: {}", e);
-                ExitCode::FAILURE
+                ExitCode::from(EXIT_ERROR)
             }
         },
         Err(e) => {
             eprintln!("Error: {}", e);
-            ExitCode::FAILURE
+            ExitCode::from(EXIT_ERROR)
         }
     }
 }
