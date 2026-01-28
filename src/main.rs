@@ -34,24 +34,30 @@ fn main() -> ExitCode {
 
     match is_dir(&args.path1) {
         Ok(true) => {
-            let results = compare_dirs(&args.path1, &args.path2, args.quick, chunk_size);
-
-            for (path, file_diff) in results {
-                if args.diffs_only && file_diff == FileDiff::Equal {
-                    continue;
-                }
-                println!(
-                    "{}\t{}{}",
-                    file_diff.as_number(),
-                    path.display(),
-                    if args.machine_readable {
-                        "".to_string()
-                    } else {
-                        format!("\t({})", file_diff.as_desc())
+            match compare_dirs(&args.path1, &args.path2, args.quick, chunk_size) {
+                Ok(results) => {
+                    for (path, file_diff) in results {
+                        if args.diffs_only && file_diff == FileDiff::Equal {
+                            continue;
+                        }
+                        println!(
+                            "{}\t{}{}",
+                            file_diff.as_number(),
+                            path.display(),
+                            if args.machine_readable {
+                                "".to_string()
+                            } else {
+                                format!("\t({})", file_diff.as_desc())
+                            }
+                        );
                     }
-                );
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    ExitCode::FAILURE
+                }
             }
-            ExitCode::SUCCESS
         }
         Ok(false) => match compare_files(&args.path1, &args.path2, args.quick, chunk_size) {
             Ok(result) => {
@@ -62,7 +68,7 @@ fn main() -> ExitCode {
                         "{}",
                         match result {
                             FileDiff::Equal => "Files are equal".to_string(),
-                            FileDiff::Different(o @ _) => {
+                            FileDiff::Different(o) => {
                                 format!("Files differ at byte {}", o)
                             }
                             _ => "This should never happen.".to_string(),

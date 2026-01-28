@@ -32,15 +32,17 @@ pub enum FileDiff {
     Different(usize),
     LeftOnly,
     RightOnly,
+    Error(String),
 }
 
 impl FileDiff {
     pub fn as_number(&self) -> String {
         match self {
             Self::Equal => "-1".to_string(),
-            Self::Different(d @ _) => format!("{}", d),
+            Self::Different(d) => format!("{}", d),
             Self::LeftOnly => "-2".to_string(),
             Self::RightOnly => "-3".to_string(),
+            Self::Error(_) => "-4".to_string(),
         }
     }
 
@@ -50,6 +52,7 @@ impl FileDiff {
             Self::Different(_) => "diff",
             Self::LeftOnly => "left only",
             Self::RightOnly => "right only",
+            Self::Error(_) => "error",
         }
     }
 }
@@ -114,30 +117,31 @@ pub fn compare_dirs<P: AsRef<Path>>(
     dir2: P,
     quick: bool,
     chunk_size: usize,
-) -> Vec<(PathBuf, FileDiff)> {
+) -> io::Result<Vec<(PathBuf, FileDiff)>> {
     let mut results = vec![];
 
-    for entry in fs::read_dir(&dir1).expect("Failed to read directory") {
-        let entry = entry.expect("Failed to read directory entry");
+    for entry in fs::read_dir(&dir1)? {
+        let entry = entry?;
         let path = entry.path();
 
+        let filename = match path.file_name() {
+            Some(name) => name,
+            None => continue,
+        };
+
         if path.is_dir() {
-            let other_path = dir2
-                .as_ref()
-                .join(path.file_name().expect("Failed to get filename"));
+            let other_path = dir2.as_ref().join(filename);
             if other_path.is_dir() {
-                results.extend(compare_dirs(&path, &other_path, quick, chunk_size));
+                results.extend(compare_dirs(&path, &other_path, quick, chunk_size)?);
             } else {
                 results.push((path, FileDiff::LeftOnly));
             }
         } else {
-            let other_path = dir2
-                .as_ref()
-                .join(path.file_name().expect("Failed to get filename"));
+            let other_path = dir2.as_ref().join(filename);
             if other_path.exists() {
                 match compare_files(&path, &other_path, quick, chunk_size) {
-                    Ok(result @ _) => results.push((path, result)),
-                    Err(e) => eprintln!("Error: {}", e),
+                    Ok(result) => results.push((path, result)),
+                    Err(e) => results.push((path, FileDiff::Error(e.to_string()))),
                 }
             } else {
                 results.push((path, FileDiff::LeftOnly));
@@ -145,29 +149,31 @@ pub fn compare_dirs<P: AsRef<Path>>(
         }
     }
 
-    for entry in fs::read_dir(dir2).expect("Failed to read directory") {
-        let entry = entry.expect("Failed to read directory entry");
+    for entry in fs::read_dir(&dir2)? {
+        let entry = entry?;
         let path = entry.path();
+
+        let filename = match path.file_name() {
+            Some(name) => name,
+            None => continue,
+        };
+
         if path.is_dir() {
-            let other_path = dir1
-                .as_ref()
-                .join(path.file_name().expect("Failed to get filename"));
+            let other_path = dir1.as_ref().join(filename);
             if other_path.is_dir() {
-                results.extend(compare_dirs(&other_path, &path, quick, chunk_size));
+                results.extend(compare_dirs(&other_path, &path, quick, chunk_size)?);
             } else {
                 results.push((path, FileDiff::RightOnly));
             }
         } else {
-            let other_path = dir1
-                .as_ref()
-                .join(path.file_name().expect("Failed to get filename"));
+            let other_path = dir1.as_ref().join(filename);
             if !other_path.exists() {
                 results.push((path, FileDiff::RightOnly));
             }
         }
     }
 
-    results
+    Ok(results)
 }
 
 #[cfg(test)]
