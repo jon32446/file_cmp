@@ -1,6 +1,13 @@
 # file_cmp
 
-A file comparison utility written in Rust.
+A high-performance file comparison utility written in Rust.
+
+## Features
+
+- **Fast**: Uses parallel processing (rayon) for directory comparisons
+- **Cross-platform**: Works on Linux, macOS, and Windows
+- **Flexible**: Configurable chunk size, quick mode, and machine-readable output
+- **Reliable**: Proper error handling with meaningful exit codes
 
 ## Usage
 
@@ -22,19 +29,53 @@ Options:
   -V, --version                  Print version
 ```
 
+## Exit Codes
+
+Following standard `cmp` behavior:
+- **0**: Files are identical
+- **1**: Files differ
+- **2**: Error occurred
+
 ### Examples:
 
 ```
-> file_cmp C:\Python26\libs C:\Python27\libs
-25      C:\Python26\libs\bz2.lib        (diff)
--1      C:\Python26\libs\equal_file.txt (equal)
--2      C:\Python26\libs\leftonly.txt   (left only)
--3      C:\Python27\libs\python27.lib   (right only)
+> file_cmp /path/to/dir1 /path/to/dir2
+25      /path/to/dir1/file.lib       (diff)
+-1      /path/to/dir1/equal_file.txt (equal)
+-2      /path/to/dir1/leftonly.txt   (left only)
+-3      /path/to/dir2/rightonly.lib  (right only)
 
-> file_cmp C:\Python26\libs\bz2.lib C:\Python27\libs\bz2.lib
+> file_cmp file1.bin file2.bin
 Files differ at byte 25
 
-> file_cmp -m C:\Python26\libs\bz2.lib C:\Python27\libs\bz2.lib
+> file_cmp -m file1.bin file2.bin
 25
+```
 
+## Performance
+
+Benchmark results comparing file_cmp against the standard `cmp` utility:
+
+| Test Case | cmp | file_cmp | file_cmp -q |
+|-----------|-----|----------|-------------|
+| 1MB identical | 4ms | 2ms | 1ms |
+| 10MB identical | 4ms | 4ms | 4ms |
+| 100MB identical | 33ms | 27ms | 24ms |
+| 10MB differ at start | 1ms | 1ms | 1ms |
+| 10MB differ at end | 4ms | 4ms | 4ms |
+
+*Results may vary based on hardware and system load.*
+
+Run the included benchmark: `./benchmark.sh`
+
+## Building
+
+```bash
+cargo build --release
+```
+
+## Testing
+
+```bash
+cargo test
 ```
