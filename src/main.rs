@@ -1,5 +1,5 @@
 use clap::Parser;
-use file_cmp::{compare_dirs, compare_files, is_dir, FileDiff};
+use file_cmp::{compare_dirs, compare_files, is_dir, parse_chunk_size, FileDiff, DEFAULT_CHUNK_SIZE};
 use std::process::ExitCode;
 
 #[derive(Parser, Debug)]
@@ -26,9 +26,15 @@ struct Args {
 fn main() -> ExitCode {
     let args = Args::parse();
 
+    let chunk_size = args
+        .chunk_size
+        .as_ref()
+        .and_then(|s| parse_chunk_size(s))
+        .unwrap_or(DEFAULT_CHUNK_SIZE);
+
     match is_dir(&args.path1) {
         Ok(true) => {
-            let results = compare_dirs(&args.path1, &args.path2, args.quick);
+            let results = compare_dirs(&args.path1, &args.path2, args.quick, chunk_size);
 
             for (path, file_diff) in results {
                 if args.diffs_only && file_diff == FileDiff::Equal {
@@ -47,8 +53,8 @@ fn main() -> ExitCode {
             }
             ExitCode::SUCCESS
         }
-        Ok(false) => match compare_files(&args.path1, &args.path2, args.quick) {
-            Ok(result @ _) => {
+        Ok(false) => match compare_files(&args.path1, &args.path2, args.quick, chunk_size) {
+            Ok(result) => {
                 if args.machine_readable {
                     print!("{}", result.as_number())
                 } else {

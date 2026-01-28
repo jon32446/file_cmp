@@ -2,6 +2,30 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 
+/// Default buffer size for file comparison (64KB)
+pub const DEFAULT_CHUNK_SIZE: usize = 64 * 1024;
+
+/// Parses a chunk size string (e.g., "4k", "2M", "128K") into bytes.
+///
+/// Supports suffixes: k/K (kilobytes), m/M (megabytes), g/G (gigabytes).
+/// Returns None if the string is invalid.
+pub fn parse_chunk_size(s: &str) -> Option<usize> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    let (num_str, multiplier) = match s.chars().last()? {
+        'k' | 'K' => (&s[..s.len() - 1], 1024),
+        'm' | 'M' => (&s[..s.len() - 1], 1024 * 1024),
+        'g' | 'G' => (&s[..s.len() - 1], 1024 * 1024 * 1024),
+        '0'..='9' => (s, 1),
+        _ => return None,
+    };
+
+    num_str.parse::<usize>().ok().map(|n| n * multiplier)
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum FileDiff {
     Equal,
@@ -35,7 +59,12 @@ pub fn is_dir<P: AsRef<Path>>(path1: P) -> io::Result<bool> {
     Ok(file1_meta.is_dir())
 }
 
-pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Result<FileDiff> {
+pub fn compare_files<P: AsRef<Path>>(
+    path1: P,
+    path2: P,
+    quick: bool,
+    chunk_size: usize,
+) -> io::Result<FileDiff> {
     let file1_meta = fs::metadata(&path1)?;
     let file2_meta = fs::metadata(&path2)?;
 
@@ -53,8 +82,8 @@ pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Res
     let mut file1 = BufReader::new(File::open(path1)?);
     let mut file2 = BufReader::new(File::open(path2)?);
 
-    let mut buffer1 = [0; 4096];
-    let mut buffer2 = [0; 4096];
+    let mut buffer1 = vec![0u8; chunk_size];
+    let mut buffer2 = vec![0u8; chunk_size];
     let mut pos = 0;
 
     loop {
@@ -80,7 +109,12 @@ pub fn compare_files<P: AsRef<Path>>(path1: P, path2: P, quick: bool) -> io::Res
     }
 }
 
-pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathBuf, FileDiff)> {
+pub fn compare_dirs<P: AsRef<Path>>(
+    dir1: P,
+    dir2: P,
+    quick: bool,
+    chunk_size: usize,
+) -> Vec<(PathBuf, FileDiff)> {
     let mut results = vec![];
 
     for entry in fs::read_dir(&dir1).expect("Failed to read directory") {
@@ -92,7 +126,7 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
                 .as_ref()
                 .join(path.file_name().expect("Failed to get filename"));
             if other_path.is_dir() {
-                results.extend(compare_dirs(&path, &other_path, quick));
+                results.extend(compare_dirs(&path, &other_path, quick, chunk_size));
             } else {
                 results.push((path, FileDiff::LeftOnly));
             }
@@ -101,7 +135,7 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
                 .as_ref()
                 .join(path.file_name().expect("Failed to get filename"));
             if other_path.exists() {
-                match compare_files(&path, &other_path, quick) {
+                match compare_files(&path, &other_path, quick, chunk_size) {
                     Ok(result @ _) => results.push((path, result)),
                     Err(e) => eprintln!("Error: {}", e),
                 }
@@ -119,7 +153,7 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
                 .as_ref()
                 .join(path.file_name().expect("Failed to get filename"));
             if other_path.is_dir() {
-                results.extend(compare_dirs(&other_path, &path, quick));
+                results.extend(compare_dirs(&other_path, &path, quick, chunk_size));
             } else {
                 results.push((path, FileDiff::RightOnly));
             }
@@ -134,4 +168,40 @@ pub fn compare_dirs<P: AsRef<Path>>(dir1: P, dir2: P, quick: bool) -> Vec<(PathB
     }
 
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_chunk_size_kilobytes() {
+        assert_eq!(parse_chunk_size("4k"), Some(4 * 1024));
+        assert_eq!(parse_chunk_size("128K"), Some(128 * 1024));
+    }
+
+    #[test]
+    fn test_parse_chunk_size_megabytes() {
+        assert_eq!(parse_chunk_size("2m"), Some(2 * 1024 * 1024));
+        assert_eq!(parse_chunk_size("16M"), Some(16 * 1024 * 1024));
+    }
+
+    #[test]
+    fn test_parse_chunk_size_gigabytes() {
+        assert_eq!(parse_chunk_size("1g"), Some(1024 * 1024 * 1024));
+        assert_eq!(parse_chunk_size("2G"), Some(2 * 1024 * 1024 * 1024));
+    }
+
+    #[test]
+    fn test_parse_chunk_size_bytes() {
+        assert_eq!(parse_chunk_size("4096"), Some(4096));
+        assert_eq!(parse_chunk_size("65536"), Some(65536));
+    }
+
+    #[test]
+    fn test_parse_chunk_size_invalid() {
+        assert_eq!(parse_chunk_size(""), None);
+        assert_eq!(parse_chunk_size("abc"), None);
+        assert_eq!(parse_chunk_size("4x"), None);
+    }
 }
