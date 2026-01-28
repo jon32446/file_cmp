@@ -28,6 +28,25 @@ pub fn parse_chunk_size(s: &str) -> Option<usize> {
     num_str.parse::<usize>().ok().map(|n| n * multiplier)
 }
 
+/// Represents the result of comparing two files or directory entries.
+///
+/// # Variants
+///
+/// * `Equal` - Files are byte-identical
+/// * `Different(usize)` - Files differ, with the byte offset of first difference
+/// * `LeftOnly` - Entry exists only in the left/first directory
+/// * `RightOnly` - Entry exists only in the right/second directory
+/// * `Error(String)` - An error occurred during comparison
+///
+/// # Example
+///
+/// ```
+/// use file_cmp::FileDiff;
+///
+/// let diff = FileDiff::Different(42);
+/// assert_eq!(diff.as_desc(), "diff");
+/// assert_eq!(diff.as_number(), "42");
+/// ```
 #[derive(Debug, Eq, PartialEq)]
 pub enum FileDiff {
     Equal,
@@ -38,6 +57,13 @@ pub enum FileDiff {
 }
 
 impl FileDiff {
+    /// Returns a machine-readable numeric representation of the diff result.
+    ///
+    /// * `-1` for Equal
+    /// * Byte offset (0+) for Different
+    /// * `-2` for LeftOnly
+    /// * `-3` for RightOnly
+    /// * `-4` for Error
     pub fn as_number(&self) -> String {
         match self {
             Self::Equal => "-1".to_string(),
@@ -48,6 +74,7 @@ impl FileDiff {
         }
     }
 
+    /// Returns a human-readable description of the diff result.
     pub fn as_desc(&self) -> &'static str {
         match self {
             Self::Equal => "equal",
@@ -59,11 +86,59 @@ impl FileDiff {
     }
 }
 
+/// Checks if a path refers to a directory.
+///
+/// # Arguments
+///
+/// * `path1` - Path to check
+///
+/// # Returns
+///
+/// * `Ok(true)` if the path is a directory
+/// * `Ok(false)` if the path is a file
+/// * `Err` if the path doesn't exist or cannot be accessed
+///
+/// # Example
+///
+/// ```no_run
+/// use file_cmp::is_dir;
+///
+/// if is_dir("src").unwrap() {
+///     println!("src is a directory");
+/// }
+/// ```
 pub fn is_dir<P: AsRef<Path>>(path1: P) -> io::Result<bool> {
     let file1_meta = fs::metadata(&path1)?;
     Ok(file1_meta.is_dir())
 }
 
+/// Compares two files byte-by-byte for equality.
+///
+/// # Arguments
+///
+/// * `path1` - Path to the first file
+/// * `path2` - Path to the second file
+/// * `quick` - If true, returns immediately on first difference without finding exact byte offset
+/// * `chunk_size` - Size of read buffer in bytes (use `DEFAULT_CHUNK_SIZE` for default)
+///
+/// # Returns
+///
+/// * `Ok(FileDiff::Equal)` if files are identical
+/// * `Ok(FileDiff::Different(offset))` if files differ, with byte offset of first difference
+/// * `Err` if files cannot be read
+///
+/// # Example
+///
+/// ```no_run
+/// use file_cmp::{compare_files, FileDiff, DEFAULT_CHUNK_SIZE};
+///
+/// let result = compare_files("file1.txt", "file2.txt", false, DEFAULT_CHUNK_SIZE).unwrap();
+/// match result {
+///     FileDiff::Equal => println!("Files are identical"),
+///     FileDiff::Different(offset) => println!("Files differ at byte {}", offset),
+///     _ => unreachable!(),
+/// }
+/// ```
 pub fn compare_files<P: AsRef<Path>>(
     path1: P,
     path2: P,
@@ -114,6 +189,35 @@ pub fn compare_files<P: AsRef<Path>>(
     }
 }
 
+/// Compares two directories recursively using parallel processing.
+///
+/// Compares all files in both directories, recursively descending into subdirectories.
+/// Files are compared in parallel using rayon for improved performance.
+///
+/// # Arguments
+///
+/// * `dir1` - Path to the first (left) directory
+/// * `dir2` - Path to the second (right) directory
+/// * `quick` - If true, uses quick comparison mode for files
+/// * `chunk_size` - Size of read buffer for file comparisons
+///
+/// # Returns
+///
+/// A vector of tuples containing the file path and its comparison result.
+/// Paths from dir1 are used for files that exist in both directories.
+///
+/// # Example
+///
+/// ```no_run
+/// use file_cmp::{compare_dirs, FileDiff, DEFAULT_CHUNK_SIZE};
+///
+/// let results = compare_dirs("dir1", "dir2", false, DEFAULT_CHUNK_SIZE).unwrap();
+/// for (path, diff) in results {
+///     if diff != FileDiff::Equal {
+///         println!("{}: {}", path.display(), diff.as_desc());
+///     }
+/// }
+/// ```
 pub fn compare_dirs<P: AsRef<Path>>(
     dir1: P,
     dir2: P,
