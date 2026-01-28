@@ -55,7 +55,7 @@ fn test_machine_readable_equal() {
         .assert()
         .success()
         .code(0)
-        .stdout("-1");
+        .stdout("-1\n");
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn test_machine_readable_different() {
         .args(["-m", "tests/testfiles/test.txt", "tests/testfiles/text.txt"])
         .assert()
         .code(1)
-        .stdout("2");
+        .stdout("2\n");
 }
 
 // --- Quick mode tests ---
@@ -80,7 +80,7 @@ fn test_quick_mode_different_sizes() {
         ])
         .assert()
         .code(1)
-        .stdout("0");
+        .stdout("0\n");
 }
 
 #[test]

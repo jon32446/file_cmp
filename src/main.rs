@@ -83,9 +83,9 @@ fn main() -> ExitCode {
         Ok(false) => match compare_files(&args.path1, &args.path2, args.quick, chunk_size) {
             Ok(result) => {
                 if args.machine_readable {
-                    print!("{}", result.as_number())
+                    println!("{}", result.as_number())
                 } else {
-                    print!(
+                    println!(
                         "{}",
                         match result {
                             FileDiff::Equal => "Files are equal".to_string(),
