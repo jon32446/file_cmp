@@ -1,9 +1,10 @@
 use file_cmp::compare_files;
 use file_cmp::FileDiff::*;
 use std::io;
+use std::path::PathBuf;
 
-fn p(p: &str) -> String {
-    format!(".\\tests\\testfiles\\{}", p)
+fn p(name: &str) -> PathBuf {
+    PathBuf::from("tests").join("testfiles").join(name)
 }
 
 #[test]
