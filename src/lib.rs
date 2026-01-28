@@ -232,12 +232,8 @@ pub fn compare_dirs<P: AsRef<Path>>(
     let dir2 = dir2.as_ref();
 
     // Collect entries from both directories
-    let entries1: Vec<_> = fs::read_dir(dir1)?
-        .filter_map(|e| e.ok())
-        .collect();
-    let entries2: Vec<_> = fs::read_dir(dir2)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let entries1: Vec<_> = fs::read_dir(dir1)?.filter_map(|e| e.ok()).collect();
+    let entries2: Vec<_> = fs::read_dir(dir2)?.filter_map(|e| e.ok()).collect();
 
     // Build a set of filenames from dir1 to track what's been processed
     let dir1_names: HashSet<_> = entries1
@@ -296,11 +292,7 @@ pub fn compare_dirs<P: AsRef<Path>>(
                 }
             }
 
-            if path.is_dir() {
-                vec![(path, FileDiff::RightOnly)]
-            } else {
-                vec![(path, FileDiff::RightOnly)]
-            }
+            vec![(path, FileDiff::RightOnly)]
         })
         .collect();
 

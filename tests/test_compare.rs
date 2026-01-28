@@ -1,5 +1,5 @@
-use file_cmp::{compare_files, DEFAULT_CHUNK_SIZE};
 use file_cmp::FileDiff::*;
+use file_cmp::{compare_files, DEFAULT_CHUNK_SIZE};
 use std::io;
 use std::path::PathBuf;
 
@@ -68,7 +68,12 @@ fn test_compare_files_one_emtpy() -> io::Result<()> {
 #[test]
 fn test_compare_files_both_emtpy() -> io::Result<()> {
     // Test when file1 is empty
-    let res = compare_files(p("emptyfile.txt"), p("emptyfile.txt"), false, DEFAULT_CHUNK_SIZE)?;
+    let res = compare_files(
+        p("emptyfile.txt"),
+        p("emptyfile.txt"),
+        false,
+        DEFAULT_CHUNK_SIZE,
+    )?;
     assert_eq!(res, Equal);
     Ok(())
 }

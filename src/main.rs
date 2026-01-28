@@ -1,5 +1,7 @@
 use clap::Parser;
-use file_cmp::{compare_dirs, compare_files, is_dir, parse_chunk_size, FileDiff, DEFAULT_CHUNK_SIZE};
+use file_cmp::{
+    compare_dirs, compare_files, is_dir, parse_chunk_size, FileDiff, DEFAULT_CHUNK_SIZE,
+};
 use std::process::ExitCode;
 
 /// Exit code for identical files (standard cmp behavior)
@@ -40,46 +42,44 @@ fn main() -> ExitCode {
         .unwrap_or(DEFAULT_CHUNK_SIZE);
 
     match is_dir(&args.path1) {
-        Ok(true) => {
-            match compare_dirs(&args.path1, &args.path2, args.quick, chunk_size) {
-                Ok(results) => {
-                    let mut has_diff = false;
-                    let mut has_error = false;
-                    for (path, file_diff) in &results {
-                        if args.diffs_only && *file_diff == FileDiff::Equal {
-                            continue;
-                        }
-                        if matches!(file_diff, FileDiff::Error(_)) {
-                            has_error = true;
-                        }
-                        if *file_diff != FileDiff::Equal {
-                            has_diff = true;
-                        }
-                        println!(
-                            "{}\t{}{}",
-                            file_diff.as_number(),
-                            path.display(),
-                            if args.machine_readable {
-                                "".to_string()
-                            } else {
-                                format!("\t({})", file_diff.as_desc())
-                            }
-                        );
+        Ok(true) => match compare_dirs(&args.path1, &args.path2, args.quick, chunk_size) {
+            Ok(results) => {
+                let mut has_diff = false;
+                let mut has_error = false;
+                for (path, file_diff) in &results {
+                    if args.diffs_only && *file_diff == FileDiff::Equal {
+                        continue;
                     }
-                    if has_error {
-                        ExitCode::from(EXIT_ERROR)
-                    } else if has_diff {
-                        ExitCode::from(EXIT_DIFFERENT)
-                    } else {
-                        ExitCode::from(EXIT_IDENTICAL)
+                    if matches!(file_diff, FileDiff::Error(_)) {
+                        has_error = true;
                     }
+                    if *file_diff != FileDiff::Equal {
+                        has_diff = true;
+                    }
+                    println!(
+                        "{}\t{}{}",
+                        file_diff.as_number(),
+                        path.display(),
+                        if args.machine_readable {
+                            "".to_string()
+                        } else {
+                            format!("\t({})", file_diff.as_desc())
+                        }
+                    );
                 }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
+                if has_error {
                     ExitCode::from(EXIT_ERROR)
+                } else if has_diff {
+                    ExitCode::from(EXIT_DIFFERENT)
+                } else {
+                    ExitCode::from(EXIT_IDENTICAL)
                 }
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                ExitCode::from(EXIT_ERROR)
+            }
+        },
         Ok(false) => match compare_files(&args.path1, &args.path2, args.quick, chunk_size) {
             Ok(result) => {
                 if args.machine_readable {

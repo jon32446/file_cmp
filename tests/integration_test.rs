@@ -72,7 +72,12 @@ fn test_machine_readable_different() {
 #[test]
 fn test_quick_mode_different_sizes() {
     cmd()
-        .args(["-q", "-m", "tests/testfiles/test.txt", "tests/testfiles/testing.txt"])
+        .args([
+            "-q",
+            "-m",
+            "tests/testfiles/test.txt",
+            "tests/testfiles/testing.txt",
+        ])
         .assert()
         .code(1)
         .stdout("0");
@@ -93,7 +98,12 @@ fn test_quick_mode_equal() {
 #[test]
 fn test_chunk_size_small() {
     cmd()
-        .args(["-c", "64", "tests/testfiles/test.txt", "tests/testfiles/test.txt"])
+        .args([
+            "-c",
+            "64",
+            "tests/testfiles/test.txt",
+            "tests/testfiles/test.txt",
+        ])
         .assert()
         .success()
         .code(0);
@@ -102,7 +112,12 @@ fn test_chunk_size_small() {
 #[test]
 fn test_chunk_size_with_suffix() {
     cmd()
-        .args(["-c", "1k", "tests/testfiles/test.txt", "tests/testfiles/test.txt"])
+        .args([
+            "-c",
+            "1k",
+            "tests/testfiles/test.txt",
+            "tests/testfiles/test.txt",
+        ])
         .assert()
         .success()
         .code(0);
