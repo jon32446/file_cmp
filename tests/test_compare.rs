@@ -72,3 +72,30 @@ fn test_compare_files_both_emtpy() -> io::Result<()> {
     assert_eq!(res, Equal);
     Ok(())
 }
+
+#[test]
+fn test_compare_files_quick_mode() -> io::Result<()> {
+    // Quick mode should return Different(0) without finding exact byte offset
+    let res = compare_files(p("test.txt"), p("text.txt"), true, DEFAULT_CHUNK_SIZE)?;
+    assert_eq!(res, Different(0));
+    // But equal files should still be Equal
+    let res = compare_files(p("test.txt"), p("test.txt"), true, DEFAULT_CHUNK_SIZE)?;
+    assert_eq!(res, Equal);
+    Ok(())
+}
+
+#[test]
+fn test_compare_files_quick_mode_different_sizes() -> io::Result<()> {
+    // Quick mode with different file sizes should return immediately
+    let res = compare_files(p("test.txt"), p("testing.txt"), true, DEFAULT_CHUNK_SIZE)?;
+    assert_eq!(res, Different(0));
+    Ok(())
+}
+
+#[test]
+fn test_compare_files_small_chunk() -> io::Result<()> {
+    // Test with very small chunk size (1 byte)
+    let res = compare_files(p("test.txt"), p("text.txt"), false, 1)?;
+    assert_eq!(res, Different(2));
+    Ok(())
+}

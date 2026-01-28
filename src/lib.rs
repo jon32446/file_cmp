@@ -175,6 +175,7 @@ pub fn compare_files<P: AsRef<Path>>(
         }
 
         if buffer1[..len1] != buffer2[..len2] {
+            // In quick mode, return immediately without finding exact byte offset
             if quick {
                 return Ok(FileDiff::Different(0));
             }
@@ -183,6 +184,9 @@ pub fn compare_files<P: AsRef<Path>>(
                     return Ok(FileDiff::Different(pos + i));
                 }
             }
+            // If lengths differ but content of min(len1, len2) is same,
+            // the difference is at the shorter length
+            return Ok(FileDiff::Different(pos + len1.min(len2)));
         }
 
         pos += len1;
