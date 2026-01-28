@@ -8,3 +8,8 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.1.11", features = ["derive"] }
 rayon = "1.10"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
