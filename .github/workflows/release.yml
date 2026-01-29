@@ -71,9 +71,12 @@ jobs:
         with:
           path: artifacts
 
-      - name: Set sha_short
+      - name: Set release variables
         id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "datetime=$(date -u +%Y-%m-%d\ %H:%M:%S)" >> $GITHUB_OUTPUT
 
       - name: Prepare release assets
         run: |
@@ -84,11 +87,11 @@ jobs:
           cp artifacts/file_cmp-macos-arm64/file_cmp release/file_cmp-macos-arm64
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "release/*"
-          tag: latest
-          name: file_cmp-${{ steps.vars.outputs.sha_short }}
-          prerelease: true
-          draft: true
-          token: "${{ secrets.GITHUB_TOKEN }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.vars.outputs.sha_short }}" \
+            --title "${{ steps.vars.outputs.date }}" \
+            --notes "Released: ${{ steps.vars.outputs.datetime }} UTC
+          Commit: ${{ steps.vars.outputs.sha_short }}" \
+            release/*
